@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bungry's | Street Smart Feedback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Your Verified Firebase Configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyDEdJvhB2uQhpryYN8aPdtPhzSjZRwMdOI",
+          authDomain: "bungry-feedback.firebaseapp.com",
+          projectId: "bungry-feedback",
+          storageBucket: "bungry-feedback.firebasestorage.app",
+          messagingSenderId: "310738946338",
+          appId: "1:310738946338:web:42d31e01c98a85d7e57d7b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // FORM SUBMISSION LOGIC
+        window.handleSubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-fire fa-spin"></i> GRILLING...';
+
+            const review = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                mobile: document.getElementById('mobile').value,
+                profession: document.getElementById('profession').value,
+                location: document.getElementById('location').value,
+                rating: document.getElementById('rating').value,
+                community: document.getElementById('community').checked ? "YES" : "NO",
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                await addDoc(collection(db, "reviews"), review);
+                document.getElementById('form-card').classList.add('hidden');
+                document.getElementById('thank-you').classList.remove('hidden');
+            } catch (err) {
+                alert("Error: " + err.message);
+                btn.disabled = false;
+                btn.innerText = "TRY AGAIN";
+            }
+        };
+
+        // ADMIN CSV DOWNLOAD LOGIC
+        window.downloadCSV = async () => {
+            const btn = document.getElementById('dlBtn');
+            btn.innerHTML = "FETCHING DATA...";
+            
+            try {
+                const q = query(collection(db, "reviews"), orderBy("timestamp", "desc"));
+                const snapshot = await getDocs(q);
+                const data = snapshot.docs.map(doc => doc.data());
+
+                if (data.length === 0) return alert("No reviews found!");
+
+                const headers = ["Timestamp", "Name", "Email", "Mobile", "Profession", "Location", "Rating", "Community"];
+                const csvRows = [headers.join(",")];
+
+                data.forEach(row => {
+                    const values = [
+                        row.timestamp,
+                        `"${row.name}"`,
+                        row.email,
+                        row.mobile,
+                        `"${row.profession}"`,
+                        `"${row.location}"`,
+                        row.rating,
+                        row.community
+                    ];
+                    csvRows.push(values.join(","));
+                });
+
+                const blob = new Blob([csvRows.join("\n")], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.setAttribute('href', url);
+                a.setAttribute('download', `Bungrys_Reviews_${new Date().toISOString().split('T')[0]}.csv`);
+                a.click();
+            } catch (err) {
+                alert("Download failed: " + err.message);
+            }
+            btn.innerHTML = "📥 DOWNLOAD CSV";
+        };
+    </script>
+
+    <style>
+        :root { --bungry-orange: #FF4E00; --bungry-yellow: #FFB800; }
+        .bg-bungry { background: linear-gradient(135deg, var(--bungry-yellow) 0%, var(--bungry-orange) 100%); }
+        .btn-bungry { background-color: var(--bungry-orange); color: white; transition: 0.2s ease; font-weight: 900; }
+        .btn-bungry:active { transform: scale(0.96); }
+        .form-input { width: 100%; padding: 1rem; background-color: #f9fafb; border-radius: 1.25rem; outline: none; border: none; transition: all 0.2s; }
+        .form-input:focus { box-shadow: 0 0 0 4px rgba(255, 78, 0, 0.15); background-color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans antialiased text-gray-900">
+
+    <div class="min-h-screen flex flex-col items-center p-4">
+        <div class="mt-8 mb-6 text-center">
+            <img src="Bungry's Logo.jpg" alt="Bungry's" class="h-24 mx-auto drop-shadow-xl">
+            <p class="text-[10px] font-black tracking-[0.3em] uppercase mt-3 text-gray-400">The Street Smart Burgers</p>
+        </div>
+
+        <div id="form-card" class="w-full max-w-md bg-white rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.08)] overflow-hidden border border-gray-100">
+            <div class="bg-bungry p-7 text-center text-white">
+                <h2 class="text-3xl font-black italic uppercase tracking-tighter">Rate Your Bite!</h2>
+            </div>
+
+            <form onsubmit="handleSubmit(event)" class="p-8 space-y-4">
+                <input type="text" id="name" placeholder="Full Name" required class="form-input">
+                <input type="email" id="email" placeholder="Email Address" required class="form-input">
+                <input type="tel" id="mobile" placeholder="WhatsApp Number (10 Digits)" pattern="[0-9]{10}" required class="form-input">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="profession" placeholder="Profession" class="form-input text-sm">
+                    <input type="text" id="location" placeholder="Location" class="form-input text-sm">
+                </div>
+
+                <div class="pt-2">
+                    <label class="block text-center text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Burger Quality</label>
+                    <select id="rating" class="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl font-black text-orange-600 outline-none appearance-none text-center">
+                        <option value="5">🔥🔥🔥🔥🔥 5/5 - UNREAL</option>
+                        <option value="4">⭐⭐⭐⭐ 4/5 - GREAT</option>
+                        <option value="3">⭐⭐⭐ 3/5 - GOOD</option>
+                        <option value="2">⭐⭐ 2/5 - MEH</option>
+                        <option value="1">⭐ 1/5 - BAD</option>
+                    </select>
+                </div>
+
+                <div class="bg-yellow-50 p-4 rounded-2xl flex items-center gap-4 border border-yellow-100">
+                    <input type="checkbox" id="community" class="w-6 h-6 accent-orange-600 rounded-lg">
+                    <label for="community" class="text-[10px] font-bold text-yellow-800 uppercase leading-tight">
+                        Join Bungry's Inner Circle for Secret Launches! 🚀
+                    </label>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full btn-bungry py-5 rounded-2xl text-xl uppercase tracking-widest shadow-xl">
+                    SUBMIT FEEDBACK
+                </button>
+            </form>
+        </div>
+
+        <div id="thank-you" class="hidden w-full max-w-md bg-white rounded-[3rem] p-12 text-center shadow-2xl border border-gray-100">
+            <div class="text-7xl mb-6">🍔</div>
+            <h2 class="text-4xl font-black text-orange-600 uppercase italic leading-none">Legendary!</h2>
+            <p class="text-gray-400 mt-4 font-bold text-sm uppercase tracking-wide">Your feedback fuels the gully.</p>
+            <button onclick="location.reload()" class="mt-8 text-xs font-black text-orange-500 uppercase tracking-widest underline">Submit Another</button>
+        </div>
+
+        <button onclick="let p=prompt('ADMIN PIN:'); if(p==='2000') document.getElementById('admin-panel').classList.remove('hidden')" class="mt-16 text-[10px] font-black text-gray-300 tracking-[0.4em] uppercase hover:text-orange-400 transition-colors">
+            — ADMIN DASHBOARD —
+        </button>
+
+        <div id="admin-panel" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-50 backdrop-blur-md">
+            <div class="bg-white rounded-[3rem] p-10 w-full max-w-sm text-center shadow-2xl">
+                <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-file-csv text-orange-600 text-3xl"></i>
+                </div>
+                <h3 class="text-2xl font-black mb-2 uppercase italic">Admin Portal</h3>
+                <p class="text-gray-400 text-xs mb-8 font-bold uppercase tracking-widest">Direct CSV Export</p>
+                
+                <button id="dlBtn" onclick="downloadCSV()" class="w-full bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-green-700 transition-all mb-4 uppercase tracking-widest">
+                    📥 DOWNLOAD CSV
+                </button>
+                
+                <button onclick="document.getElementById('admin-panel').classList.add('hidden')" class="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Close Access</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
